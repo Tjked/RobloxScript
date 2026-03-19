@@ -7,15 +7,15 @@ local cam = workspace.CurrentCamera
 
 -- config
 getgenv().Aimbot = true
-getgenv().Smoothness = 0.8
-getgenv().FOV = 65
+getgenv().Smoothness = 1
+getgenv().FOV = 20
 
 
 -- fov circle setup
 local circle = Drawing.new("Circle")
 circle.Thickness = 1
 circle.Visible = true
-circle.Color = Color3.fromRGB(50, 50, 255)
+circle.Color = Color3.fromRGB(50, 255, 50)
 circle.Transparency = 0.2
 
 
@@ -30,7 +30,7 @@ local function get_target()
         if v ~= lp and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
             
             -- check for head hitboxes first, then normal head
-            local part = v.Character:FindFirstChild("HeadHB") or v.Character:FindFirstChild("Head") or v.Character:FindFirstChild("UpperTorso")
+            local part = v.Character:FindFirstChild("HumaniodRootPart") or v.Character:FindFirstChild("HumaniodRootPart") or v.Character:FindFirstChild("HumaniodRootPart")
             
             if part then
                 local pos, on_screen = cam:WorldToViewportPoint(part.Position)
