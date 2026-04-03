@@ -1,4 +1,4 @@
--- OG Rivals Script | Roblox
+-- OG Rivals Script | Updated for Custom Keybinds & Precision Sliders
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -12,8 +12,8 @@ local Settings = {
     ChamsVisibleColor = Color3.fromRGB(150, 200, 60),
     ChamsOccludedColor = Color3.fromRGB(200, 50, 50),
     ChamsAlpha = 0.4,
-    Aimbot = true, Smoothness = 1, FOV = 150, ShowFOV = true,
-    AimbotKey = Enum.UserInputType.MouseButton2,
+    Aimbot = true, Smoothness = 1.0, FOV = 150, ShowFOV = true,
+    AimbotKey = Enum.UserInputType.MouseButton2, -- Default: Right Click
     ViewmodelFOV = 70,
     MenuKey = Enum.KeyCode.Insert,
     Noclip = false, InfiniteJump = false,
@@ -68,7 +68,7 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
--- Aimbot
+-- Aimbot Target Finder
 local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
@@ -87,17 +87,16 @@ local function getTarget()
     return best
 end
 
--- ScreenGui
+-- ScreenGui Setup
 local gui = Instance.new("ScreenGui")
-gui.Name = "Nigger Client"; gui.ResetOnSpawn = false
+gui.Name = "OGRivals"; gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = game:GetService("CoreGui")
 
 local drawFolder = Instance.new("Folder", gui)
 
--- ESP
+-- ESP Object Management
 local espObjs = {}
-
 local function removeESP(p)
     if not espObjs[p] then return end
     for _, o in pairs(espObjs[p]) do pcall(function() o:Destroy() end) end
@@ -109,63 +108,53 @@ local function createESP(p)
     removeESP(p)
     local folder = Instance.new("Folder", drawFolder)
     local t = {}
-
     local nl = Instance.new("TextLabel", folder)
     nl.BackgroundTransparency=1; nl.TextColor3=Color3.new(1,1,1)
     nl.TextStrokeTransparency=0.5; nl.TextSize=13; nl.Font=Enum.Font.GothamBold
     nl.Text=p.Name; nl.Size=UDim2.new(0,100,0,16); nl.Visible=false
     t.nl = nl
-
     local dl = Instance.new("TextLabel", folder)
     dl.BackgroundTransparency=1; dl.TextColor3=Color3.fromRGB(200,200,200)
     dl.TextStrokeTransparency=0.5; dl.TextSize=11; dl.Font=Enum.Font.Gotham
     dl.Size=UDim2.new(0,100,0,14); dl.Visible=false
     t.dl = dl
-
     local hbg = Instance.new("Frame", folder)
     hbg.BackgroundColor3=Color3.fromRGB(30,30,30); hbg.BorderSizePixel=0; hbg.Visible=false
     t.hbg = hbg
     local hfill = Instance.new("Frame", hbg)
     hfill.BackgroundColor3=Color3.fromRGB(100,220,60); hfill.BorderSizePixel=0
     t.hfill = hfill
-
     local box = Drawing.new("Square")
     box.Thickness=1.5; box.Filled=false; box.Color=ACCENT; box.Visible=false
     t.box = box
-
     local hl = Instance.new("Highlight", folder)
     hl.FillColor=Settings.ChamsVisibleColor; hl.OutlineColor=Settings.ChamsVisibleColor
     hl.FillTransparency=1-Settings.ChamsAlpha; hl.OutlineTransparency=0
     hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; hl.Enabled=false
     t.hl = hl
-
     espObjs[p] = t
 end
 
+-- ESP Update Logic
 local function updateESP(p)
     local t = espObjs[p]
     if not t then return end
     local char = p.Character
     local alive = char and isAlive(p)
-
     if not alive then
         t.nl.Visible=false; t.dl.Visible=false; t.hbg.Visible=false
         t.box.Visible=false; t.hl.Enabled=false
         return
     end
-
     local hrp = getHRP(char)
     local head = getHead(char)
     local hum = char:FindFirstChildWhichIsA("Humanoid")
     if not hrp then return end
-
     local headPos = head and head.Position or hrp.Position + Vector3.new(0,2,0)
     local top, topOn = toScreen(headPos + Vector3.new(0,0.7,0))
     local bot, botOn = toScreen(hrp.Position - Vector3.new(0,3,0))
     local vis = topOn or botOn
     local occ = isOccluded(char)
-
-    -- box
     t.box.Visible = Settings.ESP and Settings.ESPBoxes and vis
     if vis then
         local h = math.abs(bot.Y - top.Y)
@@ -174,19 +163,13 @@ local function updateESP(p)
         t.box.Position = Vector2.new((top.X+bot.X)/2 - w/2, top.Y)
         t.box.Color = occ and Color3.fromRGB(200,50,50) or ACCENT
     end
-
-    -- name
     t.nl.Visible = Settings.ESP and Settings.ESPNames and vis
     if vis then t.nl.Position = UDim2.new(0, top.X-50, 0, top.Y-18) end
-
-    -- dist
     t.dl.Visible = Settings.ESP and Settings.ESPDistance and vis
     if vis then
         t.dl.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"
         t.dl.Position = UDim2.new(0, bot.X-50, 0, bot.Y+2)
     end
-
-    -- health
     if hum then
         local h = math.abs(bot.Y - top.Y)
         local w = h * 0.6
@@ -199,8 +182,6 @@ local function updateESP(p)
         t.hfill.Position = UDim2.new(0,0,1-pct,0)
         t.hfill.BackgroundColor3 = Color3.fromRGB(math.floor(255*(1-pct)), math.floor(255*pct), 0)
     end
-
-    -- chams
     t.hl.Enabled = Settings.Chams
     if Settings.Chams then
         t.hl.Adornee = char
@@ -212,7 +193,7 @@ local function updateESP(p)
     end
 end
 
--- GUI
+-- GUI Framework
 local mainFrame = Instance.new("Frame", gui)
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0,520,0,380)
@@ -286,14 +267,13 @@ local function makeToggle(parent, label, setting, order)
     btn.MouseButton1Click:Connect(function() Settings[setting]=not Settings[setting]; refresh() end)
 end
 
-local function makeSlider(parent, label, setting, mn, mx, order)
+-- Precision Slider (Modified for Decimals)
+local function makeSlider(parent, label, setting, mn, mx, order, decimal)
     local row = Instance.new("Frame", parent)
     row.Size=UDim2.new(1,-10,0,44); row.BackgroundTransparency=1; row.LayoutOrder=order
     local lbl = Instance.new("TextLabel", row)
     lbl.Size=UDim2.new(1,0,0,16); lbl.BackgroundTransparency=1
-    lbl.Text=label..": "..math.floor(Settings[setting])
-    lbl.TextColor3=Color3.new(1,1,1); lbl.TextSize=12; lbl.Font=Enum.Font.Gotham
-    lbl.TextXAlignment=Enum.TextXAlignment.Left
+    
     local track = Instance.new("Frame", row)
     track.Size=UDim2.new(1,0,0,10); track.Position=UDim2.new(0,0,0,22)
     track.BackgroundColor3=Color3.fromRGB(40,40,40); track.BorderSizePixel=0
@@ -301,10 +281,15 @@ local function makeSlider(parent, label, setting, mn, mx, order)
     local fill = Instance.new("Frame", track)
     fill.BackgroundColor3=ACCENT; fill.BorderSizePixel=0
     Instance.new("UICorner", fill).CornerRadius=UDim.new(1,0)
+
     local function setVal(v)
         v = math.clamp(v, mn, mx)
         Settings[setting] = v
-        lbl.Text = label..": "..math.floor(v)
+        -- If decimal requested, format to 2 places, otherwise floor
+        local displayVal = decimal and string.format("%.2f", v) or tostring(math.floor(v))
+        lbl.Text = label..": "..displayVal
+        lbl.TextColor3=Color3.new(1,1,1); lbl.TextSize=12; lbl.Font=Enum.Font.Gotham
+        lbl.TextXAlignment=Enum.TextXAlignment.Left
         fill.Size = UDim2.new((v-mn)/(mx-mn),0,1,0)
     end
     setVal(Settings[setting])
@@ -325,19 +310,60 @@ local vt = tabs["Visuals"]
 makeToggle(vt,"ESP","ESP",1); makeToggle(vt,"Boxes","ESPBoxes",2)
 makeToggle(vt,"Names","ESPNames",3); makeToggle(vt,"Distance","ESPDistance",4)
 makeToggle(vt,"Health","ESPHealth",5); makeToggle(vt,"Chams","Chams",6)
-makeSlider(vt,"Chams Alpha","ChamsAlpha",0.1,1.0,7)
-makeSlider(vt,"Viewmodel FOV","ViewmodelFOV",60,120,8)
+makeSlider(vt,"Chams Alpha","ChamsAlpha",0.1,1.0,7, true)
+makeSlider(vt,"Viewmodel FOV","ViewmodelFOV",70,360,8, false) -- 70-360 range
 
 local ct = tabs["Combat"]
 makeToggle(ct,"Aimbot","Aimbot",1); makeToggle(ct,"Show FOV","ShowFOV",2)
-makeSlider(ct,"FOV","FOV",10,600,3); makeSlider(ct,"Smoothness","Smoothness",0.1,5,4)
+makeSlider(ct,"FOV","FOV",10,600,3, false)
+makeSlider(ct,"Smoothness","Smoothness",0.1,5,4, true) -- Smoothness now shows decimals
+
+-- Aimlock Keybinder Button
+do
+    local row = Instance.new("Frame", ct)
+    row.Size=UDim2.new(1,-10,0,50); row.BackgroundTransparency=1; row.LayoutOrder=5
+    local lbl = Instance.new("TextLabel", row)
+    lbl.Size=UDim2.new(1,0,0,16); lbl.BackgroundTransparency=1
+    lbl.Text="Aimlock Key: "..Settings.AimbotKey.Name
+    lbl.TextColor3=Color3.new(1,1,1); lbl.TextSize=13; lbl.Font=Enum.Font.Gotham
+    lbl.TextXAlignment=Enum.TextXAlignment.Left
+    local bb = Instance.new("TextButton", row)
+    bb.Size=UDim2.new(1,0,0,26); bb.Position=UDim2.new(0,0,0,20)
+    bb.BackgroundColor3=Color3.fromRGB(35,35,35); bb.BorderSizePixel=0
+    bb.Text=Settings.AimbotKey.Name; bb.TextColor3=Color3.fromRGB(180,180,180)
+    bb.TextSize=12; bb.Font=Enum.Font.Gotham
+    Instance.new("UICorner", bb).CornerRadius=UDim.new(0,4)
+    local binding = false
+    bb.MouseButton1Click:Connect(function()
+        if binding then return end
+        binding=true; bb.Text="[ Press any Key/Mouse ]"; bb.TextColor3=ACCENT
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(inp)
+            local key = nil
+            if inp.UserInputType == Enum.UserInputType.Keyboard then
+                key = inp.KeyCode
+            elseif inp.UserInputType == Enum.UserInputType.MouseButton1 or 
+                   inp.UserInputType == Enum.UserInputType.MouseButton2 or 
+                   inp.UserInputType == Enum.UserInputType.MouseButton3 then
+                key = inp.UserInputType
+            end
+            
+            if key and key ~= Enum.KeyCode.Unknown then
+                Settings.AimbotKey = key
+                lbl.Text="Aimlock Key: "..key.Name
+                bb.Text=key.Name; bb.TextColor3=Color3.fromRGB(180,180,180)
+                binding=false; conn:Disconnect()
+            end
+        end)
+    end)
+end
 
 local mt = tabs["Misc"]
 makeToggle(mt,"Noclip","Noclip",1); makeToggle(mt,"Infinite Jump","InfiniteJump",2)
-makeToggle(mt,"Fly","Fly",3); makeSlider(mt,"Fly Speed","FlySpeed",10,200,4)
+makeToggle(mt,"Fly","Fly",3); makeSlider(mt,"Fly Speed","FlySpeed",10,200,4, false)
 makeToggle(mt,"No Flash","NoFlash",5); makeToggle(mt,"No Smoke","NoSmoke",6)
 
--- Menu keybind
+-- Menu keybinder (Keyboard Only)
 do
     local row = Instance.new("Frame", mt)
     row.Size=UDim2.new(1,-10,0,50); row.BackgroundTransparency=1; row.LayoutOrder=7
@@ -359,10 +385,6 @@ do
         local conn
         conn = UserInputService.InputBegan:Connect(function(inp)
             if inp.UserInputType ~= Enum.UserInputType.Keyboard then return end
-            local skip = {Enum.KeyCode.LeftShift,Enum.KeyCode.RightShift,
-                Enum.KeyCode.LeftControl,Enum.KeyCode.RightControl,
-                Enum.KeyCode.LeftAlt,Enum.KeyCode.RightAlt}
-            for _,k in ipairs(skip) do if inp.KeyCode==k then return end end
             Settings.MenuKey=inp.KeyCode
             lbl.Text="Menu Key: "..inp.KeyCode.Name
             bb.Text=inp.KeyCode.Name; bb.TextColor3=Color3.fromRGB(180,180,180)
@@ -382,7 +404,7 @@ UserInputService.InputBegan:Connect(function(inp)
     end
 end)
 
--- Noclip
+-- Noclip Logic
 local noclipParts = {}
 local function cacheNC()
     noclipParts = {}
@@ -401,7 +423,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Infinite Jump
+-- Infinite Jump Logic
 UserInputService.JumpRequest:Connect(function()
     if not Settings.InfiniteJump then return end
     local c = LocalPlayer.Character
@@ -411,7 +433,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- Fly
+-- Fly Logic
 local flyBV, flyBG
 local function enableFly()
     local c = LocalPlayer.Character; if not c then return end
@@ -449,13 +471,8 @@ RunService.Heartbeat:Connect(function()
     flyBV.Velocity = dir.Magnitude>0 and dir.Unit*Settings.FlySpeed or Vector3.zero
     flyBG.CFrame = CFrame.new(hrp.Position, hrp.Position+cf.LookVector)
 end)
-LocalPlayer.CharacterAdded:Connect(function()
-    flyBV=nil; flyBG=nil; task.wait(1)
-    if Settings.Fly then enableFly() end
-    task.wait(0.5); cacheNC()
-end)
 
--- No Flash
+-- Visual Cleanup (NoFlash/NoSmoke)
 Lighting.ChildAdded:Connect(function(child)
     if not Settings.NoFlash then return end
     task.wait()
@@ -464,68 +481,40 @@ Lighting.ChildAdded:Connect(function(child)
     elseif child:IsA("BlurEffect") then child.Size=0
     elseif child:IsA("SunRaysEffect") then child.Intensity=0 end
 end)
-local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-playerGui.DescendantAdded:Connect(function(obj)
-    if not Settings.NoFlash then return end
-    task.wait()
-    if (obj:IsA("Frame") or obj:IsA("ImageLabel"))
-        and obj.Size.X.Scale>=0.8 and obj.Size.Y.Scale>=0.8 then
-        local c=obj.BackgroundColor3
-        if (c.R+c.G+c.B)/3>0.6 and obj.BackgroundTransparency<0.6 then
-            obj.BackgroundTransparency=1; obj.Visible=false
-        end
-    end
-end)
 
--- No Smoke
-local smokeKW = {"smoke","flash","grenade","nade","smk"}
-workspace.DescendantAdded:Connect(function(obj)
-    if not Settings.NoSmoke then return end
-    task.wait()
-    local name = obj.Name:lower()
-    local hit = false
-    for _,kw in ipairs(smokeKW) do if name:find(kw) then hit=true; break end end
-    if not hit and obj:IsA("BasePart") then
-        for _,ch in ipairs(obj:GetChildren()) do
-            if ch:IsA("Smoke") or ch:IsA("Fire") or ch:IsA("ParticleEmitter") then hit=true; break end
-        end
-    end
-    if hit then
-        for _,ch in ipairs(obj:GetDescendants()) do
-            if ch:IsA("Smoke") then ch.Opacity=0;ch.Enabled=false
-            elseif ch:IsA("ParticleEmitter") then ch.Enabled=false;ch.Transparency=NumberSequence.new(1)
-            elseif ch:IsA("Fire") then ch.Enabled=false end
-        end
-        if obj:IsA("BasePart") then obj.Transparency=1;obj.CastShadow=false end
-    end
-end)
-
--- Player hooks
-local function onAdded(p)
-    p.CharacterAdded:Connect(function() task.wait(1); createESP(p) end)
-    if p.Character then task.wait(1); createESP(p) end
-end
-for _,p in ipairs(Players:GetPlayers()) do if p~=LocalPlayer then onAdded(p) end end
-Players.PlayerAdded:Connect(onAdded)
-Players.PlayerRemoving:Connect(removeESP)
-
--- Main loop
+-- Main Render Loop
 RunService.RenderStepped:Connect(function()
     for _,p in ipairs(Players:GetPlayers()) do
         if p~=LocalPlayer then updateESP(p) end
     end
+    
     Camera.FieldOfView = Settings.ViewmodelFOV
     fovCircle.Visible = Settings.Aimbot and Settings.ShowFOV
     fovCircle.Radius = Settings.FOV
     fovCircle.Position = UserInputService:GetMouseLocation()
-    if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Settings.AimbotKey) then
+    
+    -- Hybrid Key Detection (Keyboard or Mouse)
+    local isPressed = false
+    if Settings.AimbotKey.Name:find("MouseButton") then
+        isPressed = UserInputService:IsMouseButtonPressed(Settings.AimbotKey)
+    else
+        isPressed = UserInputService:IsKeyDown(Settings.AimbotKey)
+    end
+
+    if Settings.Aimbot and isPressed then
         local tgt = getTarget()
         if tgt then
             local s = Camera:WorldToViewportPoint(tgt.Position)
             local m = UserInputService:GetMouseLocation()
             if mousemoverel then
+                -- Smoothness now handles decimal multiplication
                 mousemoverel((s.X-m.X)*Settings.Smoothness, (s.Y-m.Y)*Settings.Smoothness)
             end
         end
     end
 end)
+
+-- Init
+for _,p in ipairs(Players:GetPlayers()) do if p~=LocalPlayer then onAdded(p) end end
+Players.PlayerAdded:Connect(onAdded)
+Players.PlayerRemoving:Connect(removeESP)
