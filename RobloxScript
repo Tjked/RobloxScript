@@ -12,9 +12,9 @@ local Settings = {
     ChamsVisibleColor = Color3.fromRGB(150, 200, 60),
     ChamsOccludedColor = Color3.fromRGB(200, 50, 50),
     ChamsAlpha = 0.4,
-    Aimbot = true, Smoothness = 2.2, FOV = 65, ShowFOV = true,
+    Aimbot = true, Smoothness = 1, FOV = 150, ShowFOV = true,
     AimbotKey = Enum.UserInputType.MouseButton2,
-    ViewmodelFOV = 165,
+    ViewmodelFOV = 70,
     MenuKey = Enum.KeyCode.Insert,
     Noclip = false, InfiniteJump = false,
     Fly = false, FlySpeed = 50,
@@ -74,7 +74,7 @@ local function getTarget()
     local best, bd = nil, Settings.FOV
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and isAlive(p) then
-            local part = getHRP(c)
+            local part = getHead(p.Character)
             if part then
                 local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, part.Position)
                 if ok and on then
@@ -155,7 +155,7 @@ local function updateESP(p)
     end
 
     local hrp = getHRP(char)
-    local head = getHead(char)
+    local head = getHRP(char)
     local hum = char:FindFirstChildWhichIsA("Humanoid")
     if not hrp then return end
 
