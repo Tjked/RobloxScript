@@ -12,9 +12,9 @@ local Settings = {
     ChamsVisibleColor = Color3.fromRGB(150, 200, 60),
     ChamsOccludedColor = Color3.fromRGB(200, 50, 50),
     ChamsAlpha = 0.4,
-    Aimbot = true, Smoothness = 1, FOV = 150, ShowFOV = true,
+    Aimbot = true, Smoothness = 2.2, FOV = 65, ShowFOV = true,
     AimbotKey = Enum.UserInputType.MouseButton2,
-    ViewmodelFOV = 70,
+    ViewmodelFOV = 165,
     MenuKey = Enum.KeyCode.Insert,
     Noclip = false, InfiniteJump = false,
     Fly = false, FlySpeed = 50,
@@ -74,7 +74,7 @@ local function getTarget()
     local best, bd = nil, Settings.FOV
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and isAlive(p) then
-            local part = getHead(p.Character)
+            local part = getHRP(c)
             if part then
                 local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, part.Position)
                 if ok and on then
@@ -123,14 +123,14 @@ local function createESP(p)
     t.dl = dl
 
     local hbg = Instance.new("Frame", folder)
-    hbg.BackgroundColor3=Color3.fromRGB(30,12,55); hbg.BorderSizePixel=0; hbg.Visible=false
+    hbg.BackgroundColor3=Color3.fromRGB(30,30,30); hbg.BorderSizePixel=0; hbg.Visible=false
     t.hbg = hbg
     local hfill = Instance.new("Frame", hbg)
     hfill.BackgroundColor3=Color3.fromRGB(100,220,60); hfill.BorderSizePixel=0
     t.hfill = hfill
 
     local box = Drawing.new("Square")
-    box.Thickness=3.1; box.Filled=false; box.Color=ACCENT; box.Visible=false
+    box.Thickness=1.5; box.Filled=false; box.Color=ACCENT; box.Visible=false
     t.box = box
 
     local hl = Instance.new("Highlight", folder)
