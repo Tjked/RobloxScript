@@ -19,10 +19,6 @@ local Settings = {
     Noclip = false, InfiniteJump = false,
     Fly = false, FlySpeed = 50,
     NoFlash = true, NoSmoke = true,
-    TriggerBot = false
-    Settings.Triggerbot = true
-    Settings.TriggerDelay = 0.01 -- Faster delay for "Always On" feel
-    Settings.TeamCheck = true
 }
 
 local ACCENT = Color3.fromRGB(150, 200, 60)
@@ -76,93 +72,19 @@ fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
-    
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and isAlive(p) then
             local part = getHead(p.Character)
             if part then
                 local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, part.Position)
-                
-                -- 1. Check if they are on screen
                 if ok and on then
-                    -- 2. Visibility/Occlusion Check (The "Wall Check")
-                    local origin = Camera.CFrame.Position
-                    local direction = part.Position - origin
-                    
-                    local rayParams = RaycastParams.new()
-                    -- Ignore yourself so the ray doesn't hit your own character
-                    rayParams.FilterDescendantsInstances = {LocalPlayer.Character}
-                    rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                    
-                    local result = workspace:Raycast(origin, direction, rayParams)
-                    
-                    -- Only proceed if the ray hit the target part (or its parent character)
-                    -- If 'result' is nil or the hit isn't the enemy, they are behind a wall
-                    local isVisible = result and (result.Instance:IsDescendantOf(p.Character))
-
-                    if isVisible then
-                        local d = (Vector2.new(s.X, s.Y) - mouse).Magnitude
-                        if d < bd then 
-                            bd = d
-                            best = part 
-                        end
-                    end
+                    local d = (Vector2.new(s.X, s.Y) - mouse).Magnitude
+                    if d < bd then bd = d; best = part end
                 end
             end
         end
     end
     return best
-end
-
--- TriggerBot
-local lastTrigger = 0
-
-local function doTriggerbot()
-    if not Settings.Triggerbot then return end
-    if tick() - lastTrigger < (Settings.TriggerDelay or 0.01) then return end
-
-    local mousePos = UserInputService:GetMouseLocation()
-    local viewportRay = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
-    raycastParams.IgnoreWater = true
-
-    -- Raycast handles occlusion: if a wall is hit first, the result isn't a player
-    local result = workspace:Raycast(viewportRay.Origin, viewportRay.Direction * 1000, raycastParams)
-
-    if result and result.Instance then
-        local hitPart = result.Instance
-        local model = hitPart:FindFirstAncestorOfClass("Model")
-        
-        if model then
-            local targetPlayer = Players:GetPlayerFromCharacter(model)
-            
-            if targetPlayer and targetPlayer ~= LocalPlayer then
-                -- Check if target is alive
-                local humanoid = model:FindFirstChildWhichIsA("Humanoid")
-                local isAlive = humanoid and humanoid.Health > 0
-                
-                -- Team Check logic
-                local isEnemy = true
-                if Settings.TeamCheck and targetPlayer.Team == LocalPlayer.Team then
-                    isEnemy = false
-                end
-
-                if isAlive and isEnemy then
-                    lastTrigger = tick()
-                    
-                    -- Instant fire execution
-                    if mouse1press and mouse1release then
-                        mouse1press()
-                        task.wait(0.01)
-                        mouse1release()
-                    end
-                end
-            end
-        end
-    end
 end
 
 -- ScreenGui
@@ -404,14 +326,11 @@ makeToggle(vt,"ESP","ESP",1); makeToggle(vt,"Boxes","ESPBoxes",2)
 makeToggle(vt,"Names","ESPNames",3); makeToggle(vt,"Distance","ESPDistance",4)
 makeToggle(vt,"Health","ESPHealth",5); makeToggle(vt,"Chams","Chams",6)
 makeSlider(vt,"Chams Alpha","ChamsAlpha",0.1,1.0,7)
-makeSlider(vt,"Viewmodel FOV","ViewmodelFOV",60,240,8)
+makeSlider(vt,"Viewmodel FOV","ViewmodelFOV",60,540,8)
 
 local ct = tabs["Combat"]
 makeToggle(ct,"Aimbot","Aimbot",1); makeToggle(ct,"Show FOV","ShowFOV",2)
-makeToggle(ct,"Triggerbot","Triggerbot",3) -- Added
-makeToggle(ct,"Team Check","TeamCheck",4) -- Added
-makeSlider(ct,"FOV","FOV",10,600,5)
-makeSlider(ct,"Smoothness","Smoothness",0.1,5,6)
+makeSlider(ct,"FOV","FOV",10,600,3); makeSlider(ct,"Smoothness","Smoothness",0.1,5,4)
 
 local mt = tabs["Misc"]
 makeToggle(mt,"Noclip","Noclip",1); makeToggle(mt,"Infinite Jump","InfiniteJump",2)
