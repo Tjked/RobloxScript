@@ -119,46 +119,51 @@ local function getTarget()
     return best
 end
 
--- TriggerBot (Instant 0ms)
+-- TriggerBot
 local lastTrigger = 0
 
 local function doTriggerbot()
     if not Settings.Triggerbot then return end
-    
-    -- 0ms response time (runs every frame)
-    -- We still use a microscopic buffer to prevent engine input lag
     if tick() - lastTrigger < (Settings.TriggerDelay or 0) then return end
 
     local mousePos = UserInputService:GetMouseLocation()
     local viewportRay = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
     
-    -- Occlusion Parameters
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    -- Added the character and camera to exclusion
     raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
     raycastParams.IgnoreWater = true
 
-    -- Cast ray to detect if player is visible or behind a wall
     local result = workspace:Raycast(viewportRay.Origin, viewportRay.Direction * 1000, raycastParams)
 
     if result and result.Instance then
         local hitPart = result.Instance
+        -- Check if we hit a player's body part
         local model = hitPart:FindFirstAncestorOfClass("Model")
         
         if model then
             local targetPlayer = Players:GetPlayerFromCharacter(model)
             
-            -- Validation: Not us, Alive, and Team Check
             if targetPlayer and targetPlayer ~= LocalPlayer and isAlive(targetPlayer) then
-                if not (Settings.TeamCheck and targetPlayer.Team == LocalPlayer.Team) then
-                    
+                -- Team Check
+                local canShoot = true
+                if Settings.TeamCheck and targetPlayer.Team == LocalPlayer.Team then
+                    canShoot = false
+                end
+
+                if canShoot then
                     lastTrigger = tick()
                     
-                    -- Instant Input Execution
-                    if mouse1press and mouse1release then
+                    -- Attempt execution
+                    if mouse1click then
+                        mouse1click()
+                    elseif mouse1press and mouse1release then
                         mouse1press()
-                        -- No task.wait here for absolute 0ms response
+                        task.wait() -- Smallest possible yield
                         mouse1release()
+                    else
+                        warn("Triggerbot: Your executor does not support mouse1 functions.")
                     end
                 end
             end
