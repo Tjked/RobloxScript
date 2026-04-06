@@ -9,8 +9,6 @@ local LocalPlayer = Players.LocalPlayer
 local Settings = {
     ESP = true, ESPBoxes = true, ESPNames = true, ESPDistance = true, ESPHealth = true,
     Chams = true,
-    ChamsVisibleColor = Color3.fromRGB(150, 200, 60),
-    ChamsOccludedColor = Color3.fromRGB(200, 50, 50),
     ChamsAlpha = 0.4,
     Aimbot = true, Smoothness = 1, FOV = 150, ShowFOV = true,
     AimbotKey = Enum.UserInputType.MouseButton2,
@@ -23,6 +21,7 @@ local Settings = {
     Fly = false, FlySpeed = 50,
     NoFlash = true, NoSmoke = true,
 }
+
 local ACCENT = Color3.fromRGB(150, 200, 60)
 
 -- Helpers
@@ -47,34 +46,34 @@ local function toScreen(pos)
     return Vector2.new(s.X, s.Y), on
 end
 
--- Occlude cache
+-- Occlusion logic
 local occCache, occTime = {}, {}
 local function isOccluded(c)
     local now = tick()
     if occTime[c] and now - occTime[c] < 0.1 then return occCache[c] end
     local hrp = getHRP(c)
     if not hrp then return true end
-    local ok, hit = pcall(function()
-        return workspace:FindPartOnRayWithIgnoreList(
-            Ray.new(Camera.CFrame.Position, hrp.Position - Camera.CFrame.Position),
-            {c, LocalPlayer.Character}
-        )
-    end)
-    occCache[c] = ok and hit ~= nil or false
+    
+    local origin = Camera.CFrame.Position
+    local dir = hrp.Position - origin
+    local ray = Ray.new(origin, dir)
+    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {c, LocalPlayer.Character, Camera})
+    
+    local occluded = hit ~= nil
+    occCache[c] = occluded
     occTime[c] = now
-    return occCache[c]
+    return occluded
 end
 
--- FOV circle
+-- Drawing FOV
 local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
--- Aimbot Logic Variables
+-- Aimbot 90/10 Logic
 local lastRoll = 0
 local currentTargetName = "HumanoidRootPart"
 
--- Aimbot
 local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
@@ -101,7 +100,7 @@ local function getTarget()
     return best
 end
 
--- TriggerBot
+-- Triggerbot logic
 local lastTrigger = 0
 local function doTriggerbot()
     if not Settings.Triggerbot then return end
@@ -110,13 +109,11 @@ local function doTriggerbot()
     local mousePos = UserInputService:GetMouseLocation()
     local viewportRay = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
     
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
-    raycastParams.IgnoreWater = true
-
-    local result = workspace:Raycast(viewportRay.Origin, viewportRay.Direction * 1000, raycastParams)
-
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
+    
+    local result = workspace:Raycast(viewportRay.Origin, viewportRay.Direction * 1000, params)
     if result and result.Instance then
         local model = result.Instance:FindFirstAncestorOfClass("Model")
         if model then
@@ -124,198 +121,129 @@ local function doTriggerbot()
             if p and p ~= LocalPlayer and isAlive(p) then
                 if not (Settings.TeamCheck and p.Team == LocalPlayer.Team) then
                     lastTrigger = tick()
-                    if mouse1click then mouse1click()
-                    elseif mouse1press then mouse1press(); task.wait(); mouse1release() end
+                    if mouse1click then mouse1click() end
                 end
             end
         end
     end
 end
 
--- ScreenGui
+-- GUI CONSTRUCTION
 local gui = Instance.new("ScreenGui")
 gui.Name = "OGRivals"; gui.ResetOnSpawn = false
 gui.Parent = game:GetService("CoreGui")
 
-local drawFolder = Instance.new("Folder", gui)
-local espObjs = {}
-
-local function removeESP(p)
-    if not espObjs[p] then return end
-    for _, o in pairs(espObjs[p]) do pcall(function() o:Destroy() end) end
-    espObjs[p] = nil
-end
-
-local function createESP(p)
-    if p == LocalPlayer then return end
-    removeESP(p)
-    local folder = Instance.new("Folder", drawFolder)
-    local t = {}
-
-    local nl = Instance.new("TextLabel", folder)
-    nl.BackgroundTransparency=1; nl.TextColor3=Color3.new(1,1,1)
-    nl.TextStrokeTransparency=0.5; nl.TextSize=13; nl.Font=Enum.Font.GothamBold
-    nl.Text=p.Name; nl.Size=UDim2.new(0,100,0,16); nl.Visible=false
-    t.nl = nl
-
-    local dl = Instance.new("TextLabel", folder)
-    dl.BackgroundTransparency=1; dl.TextColor3=Color3.fromRGB(200,200,200)
-    dl.TextStrokeTransparency=0.5; dl.TextSize=11; dl.Font=Enum.Font.Gotham
-    dl.Size=UDim2.new(0,100,0,14); dl.Visible=false
-    t.dl = dl
-
-    local hbg = Instance.new("Frame", folder)
-    hbg.BackgroundColor3=Color3.fromRGB(30,30,30); hbg.BorderSizePixel=0; hbg.Visible=false
-    t.hbg = hbg
-    local hfill = Instance.new("Frame", hbg)
-    hfill.BackgroundColor3=Color3.fromRGB(100,220,60); hfill.BorderSizePixel=0
-    t.hfill = hfill
-
-    local box = Drawing.new("Square")
-    box.Thickness=1.5; box.Filled=false; box.Color=ACCENT; box.Visible=false
-    t.box = box
-
-    local hl = Instance.new("Highlight", folder)
-    hl.Enabled=false; hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
-    t.hl = hl
-
-    espObjs[p] = t
-end
-
-local function updateESP(p)
-    local t = espObjs[p]
-    if not t then return end
-    local char = p.Character
-    if not (char and isAlive(p)) then
-        t.nl.Visible=false; t.dl.Visible=false; t.hbg.Visible=false
-        t.box.Visible=false; t.hl.Enabled=false; return
-    end
-
-    local hrp = getHRP(char)
-    if not hrp then return end
-
-    local head = getHead(char)
-    local top, topOn = toScreen(head.Position + Vector3.new(0,0.7,0))
-    local bot, botOn = toScreen(hrp.Position - Vector3.new(0,3,0))
-    local vis = topOn or botOn
-    local occ = isOccluded(char)
-
-    t.box.Visible = Settings.ESP and Settings.ESPBoxes and vis
-    if vis then
-        local h = math.abs(bot.Y - top.Y)
-        local w = h * 0.6
-        t.box.Size = Vector2.new(w, h)
-        t.box.Position = Vector2.new((top.X+bot.X)/2 - w/2, top.Y)
-        t.box.Color = occ and Color3.fromRGB(200,50,50) or ACCENT
-    end
-
-    t.nl.Visible = Settings.ESP and Settings.ESPNames and vis
-    if vis then t.nl.Position = UDim2.new(0, top.X-50, 0, top.Y-18) end
-
-    t.dl.Visible = Settings.ESP and Settings.ESPDistance and vis
-    if vis then
-        t.dl.Text = math.floor((hrp.Position - Camera.CFrame.Position).Magnitude).."m"
-        t.dl.Position = UDim2.new(0, bot.X-50, 0, bot.Y+2)
-    end
-
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        local h = math.abs(bot.Y - top.Y)
-        local w = h * 0.6
-        local cx = (top.X+bot.X)/2
-        t.hbg.Visible = Settings.ESP and Settings.ESPHealth and vis
-        t.hbg.Position = UDim2.new(0, cx-w/2-6, 0, top.Y)
-        t.hbg.Size = UDim2.new(0, 4, 0, h)
-        local pct = math.clamp(hum.Health/hum.MaxHealth, 0, 1)
-        t.hfill.Size = UDim2.new(1,0,pct,0)
-        t.hfill.Position = UDim2.new(0,0,1-pct,0)
-        t.hfill.BackgroundColor3 = Color3.fromHSV(pct*0.3, 1, 1)
-    end
-
-    t.hl.Enabled = Settings.Chams
-    if Settings.Chams then
-        t.hl.Adornee = char
-        local col = (p.Team == LocalPlayer.Team) and Color3.new(0,0.6,1) or (not occ and Color3.new(0,1,0) or Color3.new(1,0,0))
-        t.hl.FillColor = col; t.hl.OutlineColor = col
-        t.hl.FillTransparency = occ and (1-Settings.ChamsAlpha*0.5) or (1-Settings.ChamsAlpha)
-    else t.hl.Enabled = false end
-end
-
--- GUI Setup
 local mainFrame = Instance.new("Frame", gui)
-mainFrame.Size = UDim2.new(0,520,0,380); mainFrame.Position = UDim2.new(0.5,-260,0.5,-190)
-mainFrame.BackgroundColor3 = Color3.fromRGB(18,18,18); mainFrame.BorderSizePixel = 0
+mainFrame.Size = UDim2.new(0, 520, 0, 380)
+mainFrame.Position = UDim2.new(0.5, -260, 0.5, -190)
+mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
 mainFrame.Active = true; mainFrame.Draggable = true
 Instance.new("UICorner", mainFrame)
 local bs = Instance.new("UIStroke", mainFrame)
-bs.Color=ACCENT; bs.Thickness=1.5
+bs.Color = ACCENT; bs.Thickness = 1.5
 
 local sidebar = Instance.new("Frame", mainFrame)
-sidebar.Size=UDim2.new(0,120,1,-40); sidebar.Position=UDim2.new(0,0,0,40)
-sidebar.BackgroundColor3=Color3.fromRGB(22,22,22); sidebar.BorderSizePixel=0
+sidebar.Size = UDim2.new(0, 120, 1, -40); sidebar.Position = UDim2.new(0, 0, 0, 40)
+sidebar.BackgroundColor3 = Color3.fromRGB(22, 22, 22); sidebar.BorderSizePixel = 0
 
 local content = Instance.new("Frame", mainFrame)
-content.Size=UDim2.new(1,-130,1,-50); content.Position=UDim2.new(0,125,0,45)
-content.BackgroundTransparency=1
+content.Size = UDim2.new(1, -130, 1, -50); content.Position = UDim2.new(0, 125, 0, 45)
+content.BackgroundTransparency = 1
 
-local tabs, tabBtns = {}, {}
+local tabs = {}
 local function makeTab(name)
     local f = Instance.new("ScrollingFrame", content)
-    f.Size=UDim2.new(1,0,1,0); f.BackgroundTransparency=1; f.BorderSizePixel=0; f.Visible=false
-    Instance.new("UIListLayout", f).Padding=UDim.new(0,8)
+    f.Size = UDim2.new(1, 0, 1, 0); f.BackgroundTransparency = 1; f.BorderSizePixel = 0; f.Visible = false
+    Instance.new("UIListLayout", f).Padding = UDim.new(0, 8)
     tabs[name] = f
 end
 
 local function makeTabBtn(name, i)
     local b = Instance.new("TextButton", sidebar)
-    b.Size=UDim2.new(1,-10,0,32); b.Position=UDim2.new(0,5,0,10+(i-1)*38)
-    b.BackgroundColor3=Color3.fromRGB(30,30,30); b.Text=name; b.TextColor3=Color3.new(0.7,0.7,0.7)
+    b.Size = UDim2.new(1, -10, 0, 32); b.Position = UDim2.new(0, 5, 0, 10 + (i-1)*38)
+    b.BackgroundColor3 = Color3.fromRGB(30, 30, 30); b.Text = name; b.TextColor3 = Color3.new(0.7, 0.7, 0.7)
     Instance.new("UICorner", b)
     b.MouseButton1Click:Connect(function()
-        for n,f in pairs(tabs) do f.Visible = (n==name) end
+        for n, f in pairs(tabs) do f.Visible = (n == name) end
     end)
-    tabBtns[name] = b
 end
 
 local function makeToggle(parent, label, setting)
     local b = Instance.new("TextButton", parent)
-    b.Size=UDim2.new(1,-10,0,30); b.Text=label.." ["..(Settings[setting] and "ON" or "OFF").."]"
-    b.BackgroundColor3=Color3.fromRGB(35,35,35); b.TextColor3=Color3.new(1,1,1)
+    b.Size = UDim2.new(1, -10, 0, 30); b.Text = label .. " [" .. (Settings[setting] and "ON" or "OFF") .. "]"
+    b.BackgroundColor3 = Color3.fromRGB(35, 35, 35); b.TextColor3 = Color3.new(1, 1, 1)
     b.MouseButton1Click:Connect(function()
         Settings[setting] = not Settings[setting]
-        b.Text = label.." ["..(Settings[setting] and "ON" or "OFF").."]"
+        b.Text = label .. " [" .. (Settings[setting] and "ON" or "OFF") .. "]"
     end)
 end
 
 makeTab("Visuals"); makeTab("Combat"); makeTab("Misc")
-makeTabBtn("Visuals",1); makeTabBtn("Combat",2); makeTabBtn("Misc",3)
+makeTabBtn("Visuals", 1); makeTabBtn("Combat", 2); makeTabBtn("Misc", 3)
 makeToggle(tabs["Visuals"], "ESP", "ESP")
 makeToggle(tabs["Visuals"], "Chams", "Chams")
 makeToggle(tabs["Combat"], "Aimbot", "Aimbot")
 makeToggle(tabs["Combat"], "Triggerbot", "Triggerbot")
 tabs["Visuals"].Visible = true
 
--- Input
+-- ESP System
+local drawFolder = Instance.new("Folder", gui)
+local espObjs = {}
+
+local function createESP(p)
+    if p == LocalPlayer then return end
+    local folder = Instance.new("Folder", drawFolder)
+    local hl = Instance.new("Highlight", folder)
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    espObjs[p] = {hl = hl}
+end
+
+local function updateESP(p)
+    local data = espObjs[p]
+    if not data or not p.Character then return end
+    local char = p.Character
+    
+    if Settings.Chams and isAlive(p) then
+        data.hl.Enabled = true
+        data.hl.Adornee = char
+        local occ = isOccluded(char)
+        local col = (p.Team == LocalPlayer.Team) and Color3.new(0, 0.6, 1) or (not occ and Color3.new(0, 1, 0) or Color3.new(1, 0, 0))
+        data.hl.FillColor = col; data.hl.OutlineColor = col
+        data.hl.FillTransparency = occ and (1 - Settings.ChamsAlpha * 0.5) or (1 - Settings.ChamsAlpha)
+    else
+        data.hl.Enabled = false
+    end
+end
+
+-- Connections
+local function onAdded(p)
+    createESP(p)
+    p.CharacterAdded:Connect(function() task.wait(1); createESP(p) end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do onAdded(p) end
+Players.PlayerAdded:Connect(onAdded)
+Players.PlayerRemoving:Connect(function(p) if espObjs[p] then espObjs[p].hl:Destroy(); espObjs[p] = nil end end)
+
 UserInputService.InputBegan:Connect(function(inp)
     if inp.KeyCode == Settings.MenuKey then mainFrame.Visible = not mainFrame.Visible end
 end)
 
--- Loops
+-- Main Loop
 RunService.RenderStepped:Connect(function()
-    for _,p in ipairs(Players:GetPlayers()) do if p~=LocalPlayer then updateESP(p) end end
+    for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then updateESP(p) end end
     doTriggerbot()
+    
     fovCircle.Visible = Settings.Aimbot and Settings.ShowFOV
     fovCircle.Radius = Settings.FOV
     fovCircle.Position = UserInputService:GetMouseLocation()
+    
     if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Settings.AimbotKey) then
         local tgt = getTarget()
         if tgt then
             local s = Camera:WorldToViewportPoint(tgt.Position)
             local m = UserInputService:GetMouseLocation()
-            if mousemoverel then mousemoverel((s.X-m.X)*Settings.Smoothness, (s.Y-m.Y)*Settings.Smoothness) end
+            if mousemoverel then mousemoverel((s.X - m.X) * Settings.Smoothness, (s.Y - m.Y) * Settings.Smoothness) end
         end
     end
 end)
-
-for _,p in ipairs(Players:GetPlayers()) do onAdded(p) end
-Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() task.wait(1); createESP(p) end) end)
