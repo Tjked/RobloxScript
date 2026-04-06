@@ -13,7 +13,7 @@ local Settings = {
     ChamsOccludedColor = Color3.fromRGB(200, 50, 50),
     ChamsAlpha = 0.4,
     Aimbot = true, Smoothness = 1, FOV = 150, ShowFOV = true,
-    AimbotKey = Enum.UserInputType.MouseButton3,
+    AimbotKey = Enum.UserInputType.MouseButton2,
     ViewmodelFOV = 120,
     MenuKey = Enum.KeyCode.Insert,
     Noclip = false, InfiniteJump = false,
@@ -68,24 +68,105 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
+-- Aimbot Logic Variables
+local lastRoll = 0
+local currentTargetName = "HumanoidRootPart" -- Default to Chest
+
 -- Aimbot
 local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
+    
+    -- 1. Roll for the target part every 0.1 seconds
+    if tick() - lastRoll >= 0.1 then
+        lastRoll = tick()
+        if math.random(1, 100) <= 90 then
+            currentTargetName = "HumanoidRootPart" -- 90% Chest
+        else
+            currentTargetName = "Head" -- 10% Head
+        end
+    end
+
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and isAlive(p) then
-            local part = getHead(p.Character)
-            if part then
-                local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, part.Position)
-                if ok and on then
-                    local d = (Vector2.new(s.X, s.Y) - mouse).Magnitude
-                    if d < bd then bd = d; best = part end
+        -- Alive, Team, and Occlusion (Visibility) checks
+        if p ~= LocalPlayer and isAlive(p) and not isOccluded(p.Character) then
+            if not (Settings.TeamCheck and p.Team == LocalPlayer.Team) then
+                
+                -- 2. Attempt to find the rolled part (Chest or Head)
+                local part = p.Character:FindFirstChild(currentTargetName)
+                
+                -- Fallback in case a specific part is missing
+                if not part then 
+                    part = p.Character:FindFirstChild("HumanoidRootPart") or p.Character:FindFirstChild("Head")
+                end
+
+                if part then
+                    local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, part.Position)
+                    
+                    if ok and on then
+                        local d = (Vector2.new(s.X, s.Y) - mouse).Magnitude
+                        
+                        -- FOV check
+                        if d < bd then 
+                            bd = d
+                            best = part 
+                        end
+                    end
                 end
             end
         end
     end
     return best
 end
+
+-- TriggerBot (Instant 0ms)
+local lastTrigger = 0
+
+local function doTriggerbot()
+    if not Settings.Triggerbot then return end
+    
+    -- 0ms response time (runs every frame)
+    -- We still use a microscopic buffer to prevent engine input lag
+    if tick() - lastTrigger < (Settings.TriggerDelay or 0) then return end
+
+    local mousePos = UserInputService:GetMouseLocation()
+    local viewportRay = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
+    
+    -- Occlusion Parameters
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
+    raycastParams.IgnoreWater = true
+
+    -- Cast ray to detect if player is visible or behind a wall
+    local result = workspace:Raycast(viewportRay.Origin, viewportRay.Direction * 1000, raycastParams)
+
+    if result and result.Instance then
+        local hitPart = result.Instance
+        local model = hitPart:FindFirstAncestorOfClass("Model")
+        
+        if model then
+            local targetPlayer = Players:GetPlayerFromCharacter(model)
+            
+            -- Validation: Not us, Alive, and Team Check
+            if targetPlayer and targetPlayer ~= LocalPlayer and isAlive(targetPlayer) then
+                if not (Settings.TeamCheck and targetPlayer.Team == LocalPlayer.Team) then
+                    
+                    lastTrigger = tick()
+                    
+                    -- Instant Input Execution
+                    if mouse1press and mouse1release then
+                        mouse1press()
+                        -- No task.wait here for absolute 0ms response
+                        mouse1release()
+                    end
+                end
+            end
+        end
+    end
+end
+
+
 
 -- ScreenGui
 local gui = Instance.new("ScreenGui")
