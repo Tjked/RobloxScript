@@ -288,16 +288,28 @@ local function updateESP(p)
         t.hfill.BackgroundColor3 = Color3.fromRGB(math.floor(255*(1-pct)), math.floor(255*pct), 0)
     end
 
-    -- chams
-    t.hl.Enabled = Settings.Chams
-    if Settings.Chams then
-        t.hl.Adornee = char
-        local col = occ and Settings.ChamsOccludedColor or Settings.ChamsVisibleColor
-        t.hl.FillColor = col; t.hl.OutlineColor = col
-        t.hl.FillTransparency = occ and (1-Settings.ChamsAlpha*0.5) or (1-Settings.ChamsAlpha)
+-- chams
+t.hl.Enabled = Settings.Chams
+if Settings.Chams then
+    t.hl.Adornee = char
+    
+    -- Determine Color
+    local col
+    if p.Team == LocalPlayer.Team then
+        col = Color3.fromRGB(0, 150, 255) -- Teammate: Blue
+    elseif not occ then
+        col = Color3.fromRGB(0, 255, 0)   -- Visible Enemy: Green
     else
-        t.hl.Adornee = nil
+        col = Color3.fromRGB(255, 0, 0)   -- Occluded Enemy: Red
     end
+    
+    t.hl.FillColor = col
+    t.hl.OutlineColor = col
+    
+    -- Adjust transparency based on occlusion
+    t.hl.FillTransparency = occ and (1 - Settings.ChamsAlpha * 0.5) or (1 - Settings.ChamsAlpha)
+else
+    t.hl.Adornee = nil
 end
 
 -- GUI
