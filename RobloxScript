@@ -68,46 +68,42 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
--- Add these to your Settings table if they aren't there
-Settings.ReactionTime = 0.05 -- 50ms base reaction
-Settings.JitterIntensity = 2 -- Pixels of random shake
-Settings.PredictionScale = 0.015 -- Adjusts for target velocity
+-- Aimbot Logic (90/10 split with Wall & Team Check)
+local lastRoll = 0
+local currentTargetName = "HumanoidRootPart"
 
-local lastTargetPos = Vector3.zero
-local lastTargetTime = tick()
-
--- Aimbot Logic with Humanized Movement
-local function getHumanizedTarget()
+local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     
-    -- [Existing 90/10 Logic here...]
-    
+    -- Roll for target part every 0.1s to prevent "jittering" mid-spray
+    if tick() - lastRoll >= 0.1 then
+        lastRoll = tick()
+        -- 90% Chest (HumanoidRootPart), 10% Head
+        currentTargetName = math.random(1, 100) <= 90 and "HumanoidRootPart" or "Head"
+    end
+
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and isAlive(p) and not isOccluded(p.Character) then
-            if not (Settings.TeamCheck and p.Team == LocalPlayer.Team) then
+        -- 1. Check if player exists, is alive, and is NOT a teammate
+        if p ~= LocalPlayer and isAlive(p) then
+            local isTeammate = Settings.TeamCheck and p.Team == LocalPlayer.Team
+            
+            if not isTeammate then
                 local char = p.Character
-                local part = char:FindFirstChild(currentTargetName) or getHRP(char)
-                
-                if part then
-                    -- 1. Prediction: Calculate where they will be based on Velocity
-                    local velocity = part.Velocity
-                    local predictedPos = part.Position + (velocity * Settings.PredictionScale)
+                -- 2. Check if the player is behind a wall
+                if not isOccluded(char) then
+                    -- 3. Get the rolled part (Head or Torso)
+                    local part = char:FindFirstChild(currentTargetName) or getHRP(char)
                     
-                    local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, predictedPos)
-                    if ok and on then
-                        local screenPos = Vector2.new(s.X, s.Y)
-                        
-                        -- 2. Built-in Jitter: Add micro-shaking based on smoothness
-                        -- Higher smoothness = less jitter
-                        local jitterX = math.random(-Settings.JitterIntensity, Settings.JitterIntensity) / Settings.Smoothness
-                        local jitterY = math.random(-Settings.JitterIntensity, Settings.JitterIntensity) / Settings.Smoothness
-                        screenPos = screenPos + Vector2.new(jitterX, jitterY)
-                        
-                        local d = (screenPos - mouse).Magnitude
-                        if d < bd then 
-                            bd = d
-                            best = {Part = part, ScreenPos = screenPos} 
+                    if part then
+                        local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, part.Position)
+                        if ok and on then
+                            local d = (Vector2.new(s.X, s.Y) - mouse).Magnitude
+                            -- 4. Check if they are within the FOV circle
+                            if d < bd then 
+                                bd = d
+                                best = part 
+                            end
                         end
                     end
                 end
@@ -116,30 +112,6 @@ local function getHumanizedTarget()
     end
     return best
 end
-
--- Updated Main Loop Segment
-RunService.RenderStepped:Connect(function()
-    -- ... [Existing ESP code] ...
-
-    if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Settings.AimbotKey) then
-        local targetData = getHumanizedTarget()
-        if targetData then
-            local m = UserInputService:GetMouseLocation()
-            local targetPos = targetData.ScreenPos
-            
-            -- 3. Humanized Acceleration (Easing)
-            -- Instead of a flat speed, we use a percentage of the distance
-            -- This causes "Overshoot" and "Correction" behavior
-            local diff = (targetPos - m)
-            local moveX = diff.X / (Settings.Smoothness * 2)
-            local moveY = diff.Y / (Settings.Smoothness * 2)
-            
-            if mousemoverel then
-                mousemoverel(moveX, moveY)
-            end
-        end
-    end
-end)
 
 -- ScreenGui
 local gui = Instance.new("ScreenGui")
