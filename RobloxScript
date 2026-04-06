@@ -14,13 +14,15 @@ local Settings = {
     ChamsAlpha = 0.4,
     Aimbot = true, Smoothness = 1, FOV = 150, ShowFOV = true,
     AimbotKey = Enum.UserInputType.MouseButton2,
+    Triggerbot = true, -- Added
+    TeamCheck = true,  -- Added
+    TriggerDelay = 0,  -- Added (0 for 0ms response)
     ViewmodelFOV = 120,
     MenuKey = Enum.KeyCode.Insert,
     Noclip = false, InfiniteJump = false,
     Fly = false, FlySpeed = 50,
     NoFlash = true, NoSmoke = true,
 }
-
 local ACCENT = Color3.fromRGB(150, 200, 60)
 
 -- Helpers
