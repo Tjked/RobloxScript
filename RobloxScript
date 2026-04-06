@@ -73,19 +73,74 @@ local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and isAlive(p) then
+        -- Added: isOccluded check to ensure target is not behind a wall
+        if p ~= LocalPlayer and isAlive(p) and not isOccluded(p.Character) then
             local part = getHead(p.Character)
             if part then
                 local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, part.Position)
                 if ok and on then
                     local d = (Vector2.new(s.X, s.Y) - mouse).Magnitude
-                    if d < bd then bd = d; best = part end
+                    if d < bd then 
+                        bd = d
+                        best = part 
+                    end
                 end
             end
         end
     end
     return best
 end
+
+-- TriggerBot Logic
+local lastTrigger = 0
+
+local function doTriggerbot()
+    if not Settings.Triggerbot then return end
+    
+    -- Check timing to avoid spamming if a delay is set
+    if tick() - lastTrigger < (Settings.TriggerDelay or 0) then return end
+
+    local mousePos = UserInputService:GetMouseLocation()
+    local viewportRay = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
+    raycastParams.IgnoreWater = true
+
+    -- Cast a ray 1000 studs forward from the mouse position
+    local result = workspace:Raycast(viewportRay.Origin, viewportRay.Direction * 1000, raycastParams)
+
+    if result and result.Instance then
+        local hitPart = result.Instance
+        local model = hitPart:FindFirstAncestorOfClass("Model")
+        
+        if model then
+            local targetPlayer = Players:GetPlayerFromCharacter(model)
+            
+            -- Validation: Is it a player, are they alive, and are they an enemy?
+            if targetPlayer and targetPlayer ~= LocalPlayer and isAlive(targetPlayer) then
+                if not (Settings.TeamCheck and targetPlayer.Team == LocalPlayer.Team) then
+                    
+                    lastTrigger = tick()
+                    
+                    -- Execution: Clicks the mouse
+                    if mouse1click then
+                        mouse1click()
+                    elseif mouse1press and mouse1release then
+                        mouse1press()
+                        mouse1release()
+                    end
+                end
+            end
+        end
+    end
+end
+
+
+
+
+
 
 -- ScreenGui
 local gui = Instance.new("ScreenGui")
@@ -200,17 +255,29 @@ local function updateESP(p)
         t.hfill.BackgroundColor3 = Color3.fromRGB(math.floor(255*(1-pct)), math.floor(255*pct), 0)
     end
 
-    -- chams
+-- chams
     t.hl.Enabled = Settings.Chams
     if Settings.Chams then
         t.hl.Adornee = char
-        local col = occ and Settings.ChamsOccludedColor or Settings.ChamsVisibleColor
-        t.hl.FillColor = col; t.hl.OutlineColor = col
+        
+        -- Color Logic: Team (Blue) > Visible (Green) > Occluded (Red)
+        local col
+        if p.Team == LocalPlayer.Team then
+            col = Color3.fromRGB(0, 160, 255) -- Blue
+        elseif not occ then
+            col = Color3.fromRGB(0, 255, 0)   -- Green
+        else
+            col = Color3.fromRGB(255, 0, 0)   -- Red
+        end
+
+        t.hl.FillColor = col
+        t.hl.OutlineColor = col
+        
+        -- Keeps your original transparency scaling for occluded targets
         t.hl.FillTransparency = occ and (1-Settings.ChamsAlpha*0.5) or (1-Settings.ChamsAlpha)
     else
         t.hl.Adornee = nil
     end
-end
 
 -- GUI
 local mainFrame = Instance.new("Frame", gui)
@@ -331,11 +398,15 @@ makeSlider(vt,"Viewmodel FOV","ViewmodelFOV",60,120,8)
 local ct = tabs["Combat"]
 makeToggle(ct,"Aimbot","Aimbot",1); makeToggle(ct,"Show FOV","ShowFOV",2)
 makeSlider(ct,"FOV","FOV",10,600,3); makeSlider(ct,"Smoothness","Smoothness",0.1,5,4)
+makeToggle(ct, "Triggerbot", "Triggerbot", 5)
+makeToggle(ct, "Team Check", "TeamCheck", 6)
 
 local mt = tabs["Misc"]
 makeToggle(mt,"Noclip","Noclip",1); makeToggle(mt,"Infinite Jump","InfiniteJump",2)
 makeToggle(mt,"Fly","Fly",3); makeSlider(mt,"Fly Speed","FlySpeed",10,200,4)
 makeToggle(mt,"No Flash","NoFlash",5); makeToggle(mt,"No Smoke","NoSmoke",6)
+
+
 
 -- Menu keybind
 do
@@ -511,20 +582,25 @@ Players.PlayerRemoving:Connect(removeESP)
 
 -- Main loop
 RunService.RenderStepped:Connect(function()
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p~=LocalPlayer then updateESP(p) end
+    -- Run Triggerbot check every frame
+    doTriggerbot()
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then updateESP(p) end
     end
+
     Camera.FieldOfView = Settings.ViewmodelFOV
     fovCircle.Visible = Settings.Aimbot and Settings.ShowFOV
     fovCircle.Radius = Settings.FOV
     fovCircle.Position = UserInputService:GetMouseLocation()
+
     if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Settings.AimbotKey) then
         local tgt = getTarget()
         if tgt then
             local s = Camera:WorldToViewportPoint(tgt.Position)
             local m = UserInputService:GetMouseLocation()
             if mousemoverel then
-                mousemoverel((s.X-m.X)*Settings.Smoothness, (s.Y-m.Y)*Settings.Smoothness)
+                mousemoverel((s.X - m.X) * Settings.Smoothness, (s.Y - m.Y) * Settings.Smoothness)
             end
         end
     end
