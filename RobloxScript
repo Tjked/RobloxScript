@@ -101,7 +101,7 @@ local function doTriggerbot()
     if tick() - lastTrigger < (Settings.TriggerDelay or 0) then return end
 
     local mousePos = UserInputService:GetMouseLocation()
-    local viewportRay = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
+    local ray = Camera:ScreenPointToRay(mousePos.X, mousePos.Y)
     
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -405,6 +405,7 @@ local mt = tabs["Misc"]
 makeToggle(mt,"Noclip","Noclip",1); makeToggle(mt,"Infinite Jump","InfiniteJump",2)
 makeToggle(mt,"Fly","Fly",3); makeSlider(mt,"Fly Speed","FlySpeed",10,200,4)
 makeToggle(mt,"No Flash","NoFlash",5); makeToggle(mt,"No Smoke","NoSmoke",6)
+end  -- closes updateESP
 
 
 
