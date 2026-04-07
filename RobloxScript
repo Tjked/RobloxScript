@@ -68,7 +68,7 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
--- Aimbot Logic (90/10 split with Wall & Team Check)
+-- Aimbot Logic (80/20 for Regs, 100/0 for Snipers)
 local lastRoll = 0
 local currentTargetName = "HumanoidRootPart"
 
@@ -76,30 +76,39 @@ local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     
-    -- Roll for target part every 0.1s to prevent "jittering" mid-spray
+    -- Check what weapon we are holding
+    local character = LocalPlayer.Character
+    local heldWeapon = character and character:FindFirstChildOfClass("Tool")
+    local isSniper = heldWeapon and string.find(heldWeapon.Name:lower(), "sniper")
+
+    -- Roll for target part every 0.1s
     if tick() - lastRoll >= 0.1 then
         lastRoll = tick()
-        -- 90% Chest (HumanoidRootPart), 10% Head
-        currentTargetName = math.random(1, 100) <= 90 and "HumanoidRootPart" or "Head"
+        
+        if isSniper then
+            -- 100% Head for Snipers
+            currentTargetName = "Head"
+        else
+            -- 80% Chest, 20% Head for everything else
+            currentTargetName = math.random(1, 100) <= 80 and "HumanoidRootPart" or "Head"
+        end
     end
 
     for _, p in ipairs(Players:GetPlayers()) do
-        -- 1. Check if player exists, is alive, and is NOT a teammate
         if p ~= LocalPlayer and isAlive(p) then
             local isTeammate = Settings.TeamCheck and p.Team == LocalPlayer.Team
             
             if not isTeammate then
                 local char = p.Character
-                -- 2. Check if the player is behind a wall
+                -- Wall Check
                 if not isOccluded(char) then
-                    -- 3. Get the rolled part (Head or Torso)
+                    -- Get the target part (Dynamic based on weapon)
                     local part = char:FindFirstChild(currentTargetName) or getHRP(char)
                     
                     if part then
                         local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, part.Position)
                         if ok and on then
                             local d = (Vector2.new(s.X, s.Y) - mouse).Magnitude
-                            -- 4. Check if they are within the FOV circle
                             if d < bd then 
                                 bd = d
                                 best = part 
