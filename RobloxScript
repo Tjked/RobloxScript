@@ -572,22 +572,63 @@ Players.PlayerAdded:Connect(onAdded)
 Players.PlayerRemoving:Connect(removeESP)
 
 -- Main loop
+-- Initialize missing settings to prevent menu/script breaks
+if Settings.Triggerbot == nil then Settings.Triggerbot = true end
+
+local isTriggering = false
+
 RunService.RenderStepped:Connect(function()
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p~=LocalPlayer then updateESP(p) end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then updateESP(p) end
     end
+    
     Camera.FieldOfView = Settings.ViewmodelFOV
     fovCircle.Visible = Settings.Aimbot and Settings.ShowFOV
     fovCircle.Radius = Settings.FOV
     fovCircle.Position = UserInputService:GetMouseLocation()
+
+    -- Check if Aimbot Key is held
     if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Settings.AimbotKey) then
-        local tgt = getTarget()
+        local tgt = getTarget() -- This contains your 0.08s grace period and 60/40 logic
+        
         if tgt then
             local s = Camera:WorldToViewportPoint(tgt.Position)
             local m = UserInputService:GetMouseLocation()
+            local screenPos = Vector2.new(s.X, s.Y)
+            
+            -- Move Mouse toward target
             if mousemoverel then
-                mousemoverel((s.X-m.X)*Settings.Smoothness, (s.Y-m.Y)*Settings.Smoothness)
+                mousemoverel((s.X - m.X) * Settings.Smoothness, (s.Y - m.Y) * Settings.Smoothness)
             end
+
+            -- INTEGRATED TRIGGERBOT
+            if Settings.Triggerbot then
+                local dist = (screenPos - m).Magnitude
+                if dist < 20 then -- If crosshair is on the target (20px window)
+                    if not isTriggering then
+                        isTriggering = true
+                        if mouse1press then mouse1press() end
+                    end
+                else
+                    -- Off target: Release trigger
+                    if isTriggering then
+                        isTriggering = false
+                        if mouse1release then mouse1release() end
+                    end
+                end
+            end
+        else
+            -- No target found: Release trigger
+            if isTriggering then
+                isTriggering = false
+                if mouse1release then mouse1release() end
+            end
+        end
+    else
+        -- Aimbot Key released: Force release trigger
+        if isTriggering then
+            isTriggering = false
+            if mouse1release then mouse1release() end
         end
     end
 end)
