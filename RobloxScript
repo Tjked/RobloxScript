@@ -571,64 +571,63 @@ for _,p in ipairs(Players:GetPlayers()) do if p~=LocalPlayer then onAdded(p) end
 Players.PlayerAdded:Connect(onAdded)
 Players.PlayerRemoving:Connect(removeESP)
 
--- Main loop
--- Initialize missing settings to prevent menu/script breaks
-if Settings.Triggerbot == nil then Settings.Triggerbot = true end
-
+-- Combined Main Loop (ESP + Aimbot + Triggerbot)
 local isTriggering = false
 
 RunService.RenderStepped:Connect(function()
+    -- 1. ESP Update
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then updateESP(p) end
+        if p ~= LocalPlayer then 
+            pcall(updateESP, p) 
+        end
     end
     
+    -- 2. Visuals
     Camera.FieldOfView = Settings.ViewmodelFOV
-    fovCircle.Visible = Settings.Aimbot and Settings.ShowFOV
+    fovCircle.Visible = (Settings.Aimbot and Settings.ShowFOV)
     fovCircle.Radius = Settings.FOV
     fovCircle.Position = UserInputService:GetMouseLocation()
 
-    -- Check if Aimbot Key is held
+    -- 3. Combat Logic
     if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Settings.AimbotKey) then
-        local tgt = getTarget() -- This contains your 0.08s grace period and 60/40 logic
+        local success, tgt = pcall(getTarget)
         
-        if tgt then
+        if success and tgt then
             local s = Camera:WorldToViewportPoint(tgt.Position)
             local m = UserInputService:GetMouseLocation()
-            local screenPos = Vector2.new(s.X, s.Y)
             
-            -- Move Mouse toward target
+            -- Movement
             if mousemoverel then
                 mousemoverel((s.X - m.X) * Settings.Smoothness, (s.Y - m.Y) * Settings.Smoothness)
             end
 
-            -- INTEGRATED TRIGGERBOT
+            -- Triggerbot (Only fires if within 25 pixels of target)
             if Settings.Triggerbot then
-                local dist = (screenPos - m).Magnitude
-                if dist < 20 then -- If crosshair is on the target (20px window)
+                local dist = (Vector2.new(s.X, s.Y) - m).Magnitude
+                if dist < 25 then
                     if not isTriggering then
                         isTriggering = true
-                        if mouse1press then mouse1press() end
+                        pcall(function() if mouse1press then mouse1press() end end)
                     end
                 else
-                    -- Off target: Release trigger
                     if isTriggering then
                         isTriggering = false
-                        if mouse1release then mouse1release() end
+                        pcall(function() if mouse1release then mouse1release() end end)
                     end
                 end
             end
         else
-            -- No target found: Release trigger
+            -- Clean up trigger if target is lost
             if isTriggering then
                 isTriggering = false
-                if mouse1release then mouse1release() end
+                pcall(function() if mouse1release then mouse1release() end end)
             end
         end
     else
-        -- Aimbot Key released: Force release trigger
+        -- Clean up trigger if aim key is released
         if isTriggering then
             isTriggering = false
-            if mouse1release then mouse1release() end
+            pcall(function() if mouse1release then mouse1release() end end)
         end
     end
 end)
