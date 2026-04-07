@@ -571,63 +571,63 @@ for _,p in ipairs(Players:GetPlayers()) do if p~=LocalPlayer then onAdded(p) end
 Players.PlayerAdded:Connect(onAdded)
 Players.PlayerRemoving:Connect(removeESP)
 
--- Combined Main Loop (ESP + Aimbot + Triggerbot)
 local isTriggering = false
 
 RunService.RenderStepped:Connect(function()
-    -- 1. ESP Update
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then 
-            pcall(updateESP, p) 
+    -- 1. ESP (Wrapped to prevent errors)
+    pcall(function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then updateESP(p) end
         end
-    end
+    end)
     
-    -- 2. Visuals
+    -- 2. FOV & Camera
     Camera.FieldOfView = Settings.ViewmodelFOV
     fovCircle.Visible = (Settings.Aimbot and Settings.ShowFOV)
     fovCircle.Radius = Settings.FOV
     fovCircle.Position = UserInputService:GetMouseLocation()
 
-    -- 3. Combat Logic
+    -- 3. The Combat Block
     if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Settings.AimbotKey) then
-        local success, tgt = pcall(getTarget)
+        local tgt = getTarget() -- Your custom function
         
-        if success and tgt then
+        if tgt then
             local s = Camera:WorldToViewportPoint(tgt.Position)
             local m = UserInputService:GetMouseLocation()
+            local screenPos = Vector2.new(s.X, s.Y)
             
-            -- Movement
+            -- AIMBOT MOVEMENT (Must happen every frame tgt exists)
             if mousemoverel then
-                mousemoverel((s.X - m.X) * Settings.Smoothness, (s.Y - m.Y) * Settings.Smoothness)
+                mousemoverel((screenPos.X - m.X) * Settings.Smoothness, (screenPos.Y - m.Y) * Settings.Smoothness)
             end
 
-            -- Triggerbot (Only fires if within 25 pixels of target)
+            -- TRIGGERBOT (Only if enabled)
             if Settings.Triggerbot then
-                local dist = (Vector2.new(s.X, s.Y) - m).Magnitude
-                if dist < 25 then
+                local dist = (screenPos - m).Magnitude
+                if dist < 25 then 
                     if not isTriggering then
                         isTriggering = true
-                        pcall(function() if mouse1press then mouse1press() end end)
+                        if mouse1press then mouse1press() end
                     end
                 else
                     if isTriggering then
                         isTriggering = false
-                        pcall(function() if mouse1release then mouse1release() end end)
+                        if mouse1release then mouse1release() end
                     end
                 end
             end
         else
-            -- Clean up trigger if target is lost
+            -- No Target: Release mouse if it was being held by triggerbot
             if isTriggering then
                 isTriggering = false
-                pcall(function() if mouse1release then mouse1release() end end)
+                if mouse1release then mouse1release() end
             end
         end
     else
-        -- Clean up trigger if aim key is released
+        -- Aimbot Key Not Held: Release mouse
         if isTriggering then
             isTriggering = false
-            pcall(function() if mouse1release then mouse1release() end end)
+            if mouse1release then mouse1release() end
         end
     end
 end)
