@@ -19,6 +19,7 @@ local Settings = {
     Noclip = false, InfiniteJump = false,
     Fly = false, FlySpeed = 50,
     NoFlash = true, NoSmoke = true,
+    Settings.Triggerbot = true
 }
 
 local ACCENT = Color3.fromRGB(150, 200, 60)
