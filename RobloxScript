@@ -68,7 +68,7 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
--- Aimbot Logic (100% Head for 0.08s, then 60/40)
+-- Aimbot & Integrated Triggerbot (100% Head for 0.08s, then 60/40)
 local lastRoll = 0
 local shootStart = 0
 local isShooting = false
@@ -78,10 +78,9 @@ local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     
-    -- Check if Mouse1 is down
+    -- Track Mouse1 state for the 0.08s headshot grace period
     local mouseDown = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
 
-    -- Detect the exact moment the trigger is pulled
     if mouseDown and not isShooting then
         isShooting = true
         shootStart = tick()
@@ -89,14 +88,12 @@ local function getTarget()
         isShooting = false
     end
 
-    -- Logic Switch
     local timeHeld = tick() - shootStart
     
+    -- Logic Switch: Always Head initially, then 60/40 split
     if not isShooting or timeHeld < 0.08 then
-        -- Initial Flick / First Shot / Under 80ms: Always Head
         currentTargetName = "Head"
     elseif tick() - lastRoll >= 0.1 then
-        -- After 0.08s: Start the 60/40 Body/Head split
         lastRoll = tick()
         currentTargetName = math.random(1, 100) <= 60 and "HumanoidRootPart" or "Head"
     end
@@ -107,16 +104,28 @@ local function getTarget()
             
             local char = p.Character
             if not isOccluded(char) then
-                -- Targeting logic
                 local targetPart = (currentTargetName == "Head") and getHead(char) or (char:FindFirstChild("HumanoidRootPart") or getHRP(char))
                 
                 if targetPart then
                     local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, targetPart.Position)
                     if ok and on then
-                        local d = (Vector2.new(s.X, s.Y) - mouse).Magnitude
+                        local screenPos = Vector2.new(s.X, s.Y)
+                        local d = (screenPos - mouse).Magnitude
+                        
                         if d < bd then 
                             bd = d
                             best = targetPart 
+                            
+                            -- INTEGRATED TRIGGERBOT
+                            -- If Triggerbot is ON and the target is very close to crosshair (e.g., 15 pixels)
+                            if Settings.Triggerbot and d <= 15 then
+                                if mouse1click then
+                                    mouse1click()
+                                else
+                                    mouse1press()
+                                    mouse1release()
+                                end
+                            end
                         end
                     end
                 end
@@ -125,50 +134,6 @@ local function getTarget()
     end
     return best
 end
-
-
-
--- Triggerbot Logic (0ms)
-local function runTriggerbot()
-    if not Settings.Triggerbot then return end
-    
-    local mousePos = UserInputService:GetMouseLocation()
-    local ray = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
-    
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
-    
-    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, params)
-    
-    if result and result.Instance then
-        local model = result.Instance:FindFirstAncestorOfClass("Model")
-        if model then
-            local p = Players:GetPlayerFromCharacter(model)
-            -- Only fire if: Player exists, is alive, not a teammate, and NOT occluded
-            if p and p ~= LocalPlayer and isAlive(p) and not isOccluded(model) then
-                if not (Settings.TeamCheck and p.Team == LocalPlayer.Team) then
-                    -- 0ms Execution
-                    if mouse1click then
-                        mouse1click()
-                    else
-                        -- Fallback for executors without mouse1click
-                        mouse1press()
-                        task.wait()
-                        mouse1release()
-                    end
-                end
-            end
-        end
-    end
-end
-
-
-
-
-
-
-
 
 
 
