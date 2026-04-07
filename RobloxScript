@@ -126,6 +126,52 @@ local function getTarget()
     return best
 end
 
+
+
+-- Triggerbot Logic (0ms)
+local function runTriggerbot()
+    if not Settings.Triggerbot then return end
+    
+    local mousePos = UserInputService:GetMouseLocation()
+    local ray = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
+    
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
+    
+    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, params)
+    
+    if result and result.Instance then
+        local model = result.Instance:FindFirstAncestorOfClass("Model")
+        if model then
+            local p = Players:GetPlayerFromCharacter(model)
+            -- Only fire if: Player exists, is alive, not a teammate, and NOT occluded
+            if p and p ~= LocalPlayer and isAlive(p) and not isOccluded(model) then
+                if not (Settings.TeamCheck and p.Team == LocalPlayer.Team) then
+                    -- 0ms Execution
+                    if mouse1click then
+                        mouse1click()
+                    else
+                        -- Fallback for executors without mouse1click
+                        mouse1press()
+                        task.wait()
+                        mouse1release()
+                    end
+                end
+            end
+        end
+    end
+end
+
+
+
+
+
+
+
+
+
+
 -- ScreenGui
 local gui = Instance.new("ScreenGui")
 gui.Name = "OGRivals"; gui.ResetOnSpawn = false
