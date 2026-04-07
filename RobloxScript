@@ -76,49 +76,60 @@ local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     
-    -- MORE AGGRESSIVE DETECTION
+    -- 1. BROADENED DETECTION
     local character = LocalPlayer.Character
     local isSniper = false
     
     if character then
-        -- We check for "Sniper" or "AWM" or "Rifle" 
-        -- (Rivals uses specific names for their sniper models)
+        -- We scan for common sniper internal names in Rivals
         for _, obj in ipairs(character:GetDescendants()) do
-            local name = obj.Name:lower()
-            if name:find("sniper") or name:find("awm") or name:find("hunter") then
+            local n = obj.Name:lower()
+            if n:find("sniper") or n:find("awm") or n:find("l96") or n:find("hunter") or n:find("bolt") then
                 isSniper = true
                 break
             end
         end
+        
+        -- fallback: check if the held tool has a high "range" or specific sniper animations
+        if not isSniper then
+            local tool = character:FindFirstChildOfClass("Tool")
+            if tool and (tool.Name:lower():find("sniper") or tool:FindFirstChild("Sniper")) then
+                isSniper = true
+            end
+        end
     end
 
-    -- Update the Target Name
+    -- 2. LOCK TARGET NAME
     if isSniper then
-        currentTargetName = "Head" -- Force 100% Head
+        currentTargetName = "Head" -- NO RANDOM ROLL
     elseif tick() - lastRoll >= 0.1 then
         lastRoll = tick()
-        -- 60% Chest (1-60), 40% Head (61-100)
+        -- 60% Chest, 40% Head
         currentTargetName = math.random(1, 100) <= 60 and "HumanoidRootPart" or "Head"
     end
 
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and isAlive(p) then
-            -- Team Check
             if Settings.TeamCheck and p.Team == LocalPlayer.Team then continue end
             
             local char = p.Character
-            -- Wall Check
             if not isOccluded(char) then
-                -- Get the part
-                local part = char:FindFirstChild(currentTargetName) or getHRP(char)
+                -- 3. ENSURE WE USE THE BEST HEAD PART
+                local targetPart
+                if currentTargetName == "Head" then
+                    -- Uses the helper to find HeadHB or Head
+                    targetPart = getHead(char) 
+                else
+                    targetPart = char:FindFirstChild("HumanoidRootPart") or getHRP(char)
+                end
                 
-                if part then
-                    local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, part.Position)
+                if targetPart then
+                    local ok, s, on = pcall(Camera.WorldToViewportPoint, Camera, targetPart.Position)
                     if ok and on then
                         local d = (Vector2.new(s.X, s.Y) - mouse).Magnitude
                         if d < bd then 
                             bd = d
-                            best = part 
+                            best = targetPart 
                         end
                     end
                 end
@@ -127,7 +138,6 @@ local function getTarget()
     end
     return best
 end
-
 
 -- ScreenGui
 local gui = Instance.new("ScreenGui")
