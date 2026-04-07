@@ -68,7 +68,7 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
--- Aimbot Logic (80/20 for Regs, 100/0 for Snipers)
+-- Aimbot Logic (60/40 for Regs, 100/0 for Snipers)
 local lastRoll = 0
 local currentTargetName = "HumanoidRootPart"
 
@@ -76,33 +76,42 @@ local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     
-    -- Check what weapon we are holding
+    -- Detection for Rivals: Scans character for Sniper keywords
     local character = LocalPlayer.Character
-    local heldWeapon = character and character:FindFirstChildOfClass("Tool")
-    local isSniper = heldWeapon and string.find(heldWeapon.Name:lower(), "sniper")
+    local isSniper = false
+    
+    if character then
+        for _, obj in ipairs(character:GetDescendants()) do
+            if string.find(obj.Name:lower(), "sniper") then
+                isSniper = true
+                break
+            end
+        end
+    end
 
     -- Roll for target part every 0.1s
     if tick() - lastRoll >= 0.1 then
         lastRoll = tick()
         
         if isSniper then
-            -- 100% Head for Snipers
+            -- 100/0 split: Always Head
             currentTargetName = "Head"
         else
-            -- 80% Chest, 20% Head for everything else
-            currentTargetName = math.random(1, 100) <= 80 and "HumanoidRootPart" or "Head"
+            -- 60/40 split: 60% Chest, 40% Head
+            currentTargetName = math.random(1, 100) <= 60 and "HumanoidRootPart" or "Head"
         end
     end
 
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and isAlive(p) then
+            -- Team Check
             local isTeammate = Settings.TeamCheck and p.Team == LocalPlayer.Team
             
             if not isTeammate then
                 local char = p.Character
                 -- Wall Check
                 if not isOccluded(char) then
-                    -- Get the target part (Dynamic based on weapon)
+                    -- Get the part based on the weapon/roll above
                     local part = char:FindFirstChild(currentTargetName) or getHRP(char)
                     
                     if part then
@@ -121,7 +130,6 @@ local function getTarget()
     end
     return best
 end
-
 -- ScreenGui
 local gui = Instance.new("ScreenGui")
 gui.Name = "OGRivals"; gui.ResetOnSpawn = false
