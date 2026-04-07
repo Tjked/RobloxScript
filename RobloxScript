@@ -1,3 +1,84 @@
+OG fulcrum
+x…
+•
+💸drvg deals
+
+xzapygdx [GD],  — 3/22/2026 4:30 PM
+lol  but when are you gonna hop on do?
+"doe?"
+mb
+verdad is the defanition of a dick head rn
+xzapygdx [GD],  — 3/22/2026 4:38 PM
+like chat is this true?
+Image
+xzapygdx [GD],  — 3/22/2026 6:17 PM
+wats your snapxeno
+?\
+OG fulcrum [KING],  — 3/22/2026 6:19 PM
+Add me on Snapchat! Username: vfulcrum-41 https://www.snapchat.com/add/vfulcrum-41?share_id=My2w3YuCmNU&locale=en-US
+Snapchat
+Mango on Snapchat
+Mango is on Snapchat!
+Mango on Snapchat
+xzapygdx [GD],  — 3/22/2026 6:19 PM
+lmao
+OG fulcrum [KING],  — 3/22/2026 6:20 PM
+Whats your user
+So I can accept the request
+I have too many requests
+xzapygdx [GD],  — 3/22/2026 6:21 PM
+carter235001
+OG fulcrum [KING],  — 3/22/2026 6:23 PM
+Image
+xzapygdx [GD],  — 3/22/2026 6:23 PM
+then try
+CarterCervantez
+OG fulcrum [KING],  — 3/22/2026 6:24 PM
+I sent a request
+Sir pleae accept the request pleae
+Image
+xzapygdx [GD],  — 3/23/2026 11:02 PM
+Image
+xzapygdx [GD],  — 3/31/2026 9:18 PM
+yo
+OG fulcrum
+ started a call that lasted a few seconds. — 3/31/2026 9:18 PM
+xzapygdx [GD],  — 3/31/2026 9:18 PM
+why did you say that  your girl is transgender???
+OG fulcrum [KING],  — 3/31/2026 9:18 PM
+i didnt say that twin
+i said i got 2 girls, not SHE IS 2 people🥀
+xzapygdx [GD],  — 8:24 PM
+yo
+you ther
+there
+mb
+OG fulcrum [KING],  — 9:35 PM
+-- OG Rivals Script | Roblox
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Camera = workspace.CurrentCamera
+
+message.txt
+23 KB
+xzapygdx [GD],  — 10:23 PM
+Image
+OG fulcrum [KING],  — 10:34 PM
+-- OG Rivals Script | Roblox
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Camera = workspace.CurrentCamera
+
+message.txt
+24 KB
+﻿
+xzapygdx
+c…
+boy,male,bigback.
 -- OG Rivals Script | Roblox
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -14,14 +95,11 @@ local Settings = {
     ChamsAlpha = 0.4,
     Aimbot = true, Smoothness = 1, FOV = 150, ShowFOV = true,
     AimbotKey = Enum.UserInputType.MouseButton2,
-    ViewmodelFOV = 70,
+    ViewmodelFOV = 120,
     MenuKey = Enum.KeyCode.Insert,
     Noclip = false, InfiniteJump = false,
     Fly = false, FlySpeed = 50,
     NoFlash = true, NoSmoke = true,
-    -- ADD THESE TWO LINES HERE:
-    Triggerbot = true,
-    TeamCheck = true,
 }
 
 local ACCENT = Color3.fromRGB(150, 200, 60)
@@ -71,19 +149,17 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
-local VIM = game:GetService("VirtualInputManager")
-
--- Aimbot & Integrated Triggerbot (VIM Version)
+-- Aimbot & Integrated Triggerbot (100% Head for 0.08s, then 60/40)
 local lastRoll = 0
 local shootStart = 0
 local isShooting = false
-local isTriggering = false 
 local currentTargetName = "Head"
 
 local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     
+    -- Track Mouse1 state for the 0.08s headshot grace period
     local mouseDown = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
 
     if mouseDown and not isShooting then
@@ -95,6 +171,7 @@ local function getTarget()
 
     local timeHeld = tick() - shootStart
     
+    -- Logic Switch: Always Head initially, then 60/40 split
     if not isShooting or timeHeld < 0.08 then
         currentTargetName = "Head"
     elseif tick() - lastRoll >= 0.1 then
@@ -120,13 +197,14 @@ local function getTarget()
                             bd = d
                             best = targetPart 
                             
-                            -- TRIGGERBOT USING VIRTUAL INPUT MANAGER
-                            if Settings.Triggerbot and d <= 25 then 
-                                if not isTriggering then
-                                    isTriggering = true
-                                    -- This simulates a real hardware click
-                                    VIM:SendMouseButtonEvent(mouse.X, mouse.Y, 0, true, game, 0)
-                                    print("TRIGGERBOT: FIRING") -- Check F9 console
+                            -- INTEGRATED TRIGGERBOT
+                            -- If Triggerbot is ON and the target is very close to crosshair (e.g., 15 pixels)
+                            if Settings.Triggerbot and d <= 15 then
+                                if mouse1click then
+                                    mouse1click()
+                                else
+                                    mouse1press()
+                                    mouse1release()
                                 end
                             end
                         end
@@ -135,18 +213,9 @@ local function getTarget()
             end
         end
     end
-
-    -- RELEASE LOGIC
-    if not best or not Settings.Triggerbot or bd > 25 then
-        if isTriggering then
-            isTriggering = false
-            VIM:SendMouseButtonEvent(mouse.X, mouse.Y, 0, false, game, 0)
-            print("TRIGGERBOT: RELEASED")
-        end
-    end
-
     return best
 end
+
 
 
 -- ScreenGui
@@ -571,63 +640,25 @@ for _,p in ipairs(Players:GetPlayers()) do if p~=LocalPlayer then onAdded(p) end
 Players.PlayerAdded:Connect(onAdded)
 Players.PlayerRemoving:Connect(removeESP)
 
-local isTriggering = false
-
+-- Main loop
 RunService.RenderStepped:Connect(function()
-    -- 1. ESP (Wrapped to prevent errors)
-    pcall(function()
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then updateESP(p) end
-        end
-    end)
-    
-    -- 2. FOV & Camera
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p~=LocalPlayer then updateESP(p) end
+    end
     Camera.FieldOfView = Settings.ViewmodelFOV
-    fovCircle.Visible = (Settings.Aimbot and Settings.ShowFOV)
+    fovCircle.Visible = Settings.Aimbot and Settings.ShowFOV
     fovCircle.Radius = Settings.FOV
     fovCircle.Position = UserInputService:GetMouseLocation()
-
-    -- 3. The Combat Block
     if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Settings.AimbotKey) then
-        local tgt = getTarget() -- Your custom function
-        
+        local tgt = getTarget()
         if tgt then
             local s = Camera:WorldToViewportPoint(tgt.Position)
             local m = UserInputService:GetMouseLocation()
-            local screenPos = Vector2.new(s.X, s.Y)
-            
-            -- AIMBOT MOVEMENT (Must happen every frame tgt exists)
             if mousemoverel then
-                mousemoverel((screenPos.X - m.X) * Settings.Smoothness, (screenPos.Y - m.Y) * Settings.Smoothness)
+                mousemoverel((s.X-m.X)*Settings.Smoothness, (s.Y-m.Y)*Settings.Smoothness)
             end
-
-            -- TRIGGERBOT (Only if enabled)
-            if Settings.Triggerbot then
-                local dist = (screenPos - m).Magnitude
-                if dist < 25 then 
-                    if not isTriggering then
-                        isTriggering = true
-                        if mouse1press then mouse1press() end
-                    end
-                else
-                    if isTriggering then
-                        isTriggering = false
-                        if mouse1release then mouse1release() end
-                    end
-                end
-            end
-        else
-            -- No Target: Release mouse if it was being held by triggerbot
-            if isTriggering then
-                isTriggering = false
-                if mouse1release then mouse1release() end
-            end
-        end
-    else
-        -- Aimbot Key Not Held: Release mouse
-        if isTriggering then
-            isTriggering = false
-            if mouse1release then mouse1release() end
         end
     end
 end)
+message.txt
+24 KB
