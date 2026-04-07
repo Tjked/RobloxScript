@@ -68,17 +68,18 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
--- Aimbot & Integrated Triggerbot (100% Head for 0.08s, then 60/40)
+-- Aimbot & Integrated Virtual Trigger (100% Head for 0.08s, then 60/40)
 local lastRoll = 0
 local shootStart = 0
 local isShooting = false
+local isTriggering = false -- Track if the triggerbot is currently holding the mouse
 local currentTargetName = "Head"
 
 local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     
-    -- Track Mouse1 state for the 0.08s headshot grace period
+    -- Check if YOU are manually holding Mouse1
     local mouseDown = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
 
     if mouseDown and not isShooting then
@@ -90,7 +91,7 @@ local function getTarget()
 
     local timeHeld = tick() - shootStart
     
-    -- Logic Switch: Always Head initially, then 60/40 split
+    -- Headshot grace period logic
     if not isShooting or timeHeld < 0.08 then
         currentTargetName = "Head"
     elseif tick() - lastRoll >= 0.1 then
@@ -116,14 +117,11 @@ local function getTarget()
                             bd = d
                             best = targetPart 
                             
-                            -- INTEGRATED TRIGGERBOT
-                            -- If Triggerbot is ON and the target is very close to crosshair (e.g., 15 pixels)
-                            if Settings.Triggerbot and d <= 15 then
-                                if mouse1click then
-                                    mouse1click()
-                                else
-                                    mouse1press()
-                                    mouse1release()
+                            -- VIRTUAL TRIGGERBOT LOGIC
+                            if Settings.Triggerbot and d <= 20 then -- If on target (within 20 pixels)
+                                if not isTriggering then
+                                    isTriggering = true
+                                    if mouse1press then mouse1press() end
                                 end
                             end
                         end
@@ -132,6 +130,15 @@ local function getTarget()
             end
         end
     end
+
+    -- AUTO-RELEASE: If no valid target is found, release the mouse button
+    if not best or not Settings.Triggerbot then
+        if isTriggering then
+            isTriggering = false
+            if mouse1release then mouse1release() end
+        end
+    end
+
     return best
 end
 
