@@ -68,19 +68,21 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
--- Aimbot & Integrated Triggerbot (100% Head for 0.08s, then 60/40)
+-- Aimbot & Integrated Triggerbot (100% Head first, 60/40 spray, 0.03s Delay)
 local lastRoll = 0
 local shootStart = 0
 local isShooting = false
+local triggerFiredTime = 0 
 local currentTargetName = "Head"
 
 local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     
-    -- Track Mouse1 state for the 0.08s headshot grace period
+    -- Check if manual Mouse1 is down
     local mouseDown = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
 
+    -- Detect manual shooting start
     if mouseDown and not isShooting then
         isShooting = true
         shootStart = tick()
@@ -88,12 +90,15 @@ local function getTarget()
         isShooting = false
     end
 
-    local timeHeld = tick() - shootStart
-    
-    -- Logic Switch: Always Head initially, then 60/40 split
-    if not isShooting or timeHeld < 0.08 then
+    -- The "Firing" State logic
+    local isActuallyFiring = isShooting or (tick() - triggerFiredTime < 0.1)
+    local timeSinceStart = math.min(tick() - shootStart, tick() - triggerFiredTime)
+
+    -- 100% Head if we haven't started firing yet OR within the first 0.08s
+    if not isActuallyFiring or timeSinceStart < 0.08 then
         currentTargetName = "Head"
     elseif tick() - lastRoll >= 0.1 then
+        -- 60% Chest (HumanoidRootPart), 40% Head
         lastRoll = tick()
         currentTargetName = math.random(1, 100) <= 60 and "HumanoidRootPart" or "Head"
     end
@@ -116,15 +121,25 @@ local function getTarget()
                             bd = d
                             best = targetPart 
                             
-                            -- INTEGRATED TRIGGERBOT
-                            -- If Triggerbot is ON and the target is very close to crosshair (e.g., 7 pixels)
+                            -- INTEGRATED TRIGGERBOT WITH 0.03s DELAY
                             if d <= 7 then
-                                if mouse1click then
-                                    mouse1click()
-                                else
-                                    mouse1press()
-                                    mouse1release()
-                                end
+                                -- We run this in a separate thread so it doesn't freeze the Aimbot
+                                task.spawn(function()
+                                    task.wait(0.03) -- The requested 0.03s delay
+                                    
+                                    -- Re-verify distance after delay to ensure they didn't move
+                                    local newMouse = UserInputService:GetMouseLocation()
+                                    local _, ns, non = pcall(Camera.WorldToViewportPoint, Camera, targetPart.Position)
+                                    if non and (Vector2.new(ns.X, ns.Y) - newMouse).Magnitude <= 10 then
+                                        triggerFiredTime = tick() 
+                                        if mouse1click then
+                                            mouse1click()
+                                        else
+                                            mouse1press()
+                                            mouse1release()
+                                        end
+                                    end
+                                end)
                             end
                         end
                     end
