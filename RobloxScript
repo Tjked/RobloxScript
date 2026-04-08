@@ -117,8 +117,8 @@ local function getTarget()
                             best = targetPart 
                             
                             -- INTEGRATED TRIGGERBOT
-                            -- If Triggerbot is ON and the target is very close to crosshair (e.g., 15 pixels)
-                            if Settings.Triggerbot and d <= 15 then
+                            -- If Triggerbot is ON and the target is very close to crosshair (e.g., 7 pixels)
+                            if d <= 7 then
                                 if mouse1click then
                                     mouse1click()
                                 else
