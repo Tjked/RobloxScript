@@ -68,7 +68,7 @@ local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2; fovCircle.Filled = false
 fovCircle.Color = ACCENT; fovCircle.Transparency = 0.6
 
--- Aimbot & Integrated Triggerbot (100% Head first, 60/40 spray, 0.03s Delay)
+-- Aimbot & Reaction Trigger (100% Head first, 90/10 Body Spray)
 local lastRoll = 0
 local shootStart = 0
 local isShooting = false
@@ -79,10 +79,9 @@ local function getTarget()
     local mouse = UserInputService:GetMouseLocation()
     local best, bd = nil, Settings.FOV
     
-    -- Check if manual Mouse1 is down
+    -- Track manual input
     local mouseDown = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
 
-    -- Detect manual shooting start
     if mouseDown and not isShooting then
         isShooting = true
         shootStart = tick()
@@ -90,17 +89,19 @@ local function getTarget()
         isShooting = false
     end
 
-    -- The "Firing" State logic
+    -- Timing Logic: 
+    -- We are "Firing" if Mouse1 is down OR the Triggerbot just tapped within the last 0.1s
     local isActuallyFiring = isShooting or (tick() - triggerFiredTime < 0.1)
     local timeSinceStart = math.min(tick() - shootStart, tick() - triggerFiredTime)
 
-    -- 100% Head if we haven't started firing yet OR within the first 0.08s
-    if not isActuallyFiring or timeSinceStart < 0.08 then
+    -- Phase 1: Pre-shot and First Shot (Head)
+    -- Phase 2: After 0.09s (90% Body / 10% Head)
+    if not isActuallyFiring or timeSinceStart < 0.09 then
         currentTargetName = "Head"
     elseif tick() - lastRoll >= 0.1 then
-        -- 60% Chest (HumanoidRootPart), 40% Head
         lastRoll = tick()
-        currentTargetName = math.random(1, 100) <= 60 and "HumanoidRootPart" or "Head"
+        -- 90% Body (HumanoidRootPart), 10% Head
+        currentTargetName = math.random(1, 100) <= 90 and "HumanoidRootPart" or "Head"
     end
 
     for _, p in ipairs(Players:GetPlayers()) do
@@ -109,6 +110,7 @@ local function getTarget()
             
             local char = p.Character
             if not isOccluded(char) then
+                -- Determine part based on the timing phases above
                 local targetPart = (currentTargetName == "Head") and getHead(char) or (char:FindFirstChild("HumanoidRootPart") or getHRP(char))
                 
                 if targetPart then
@@ -117,20 +119,20 @@ local function getTarget()
                         local screenPos = Vector2.new(s.X, s.Y)
                         local d = (screenPos - mouse).Magnitude
                         
+                        -- Aimbot selection
                         if d < bd then 
                             bd = d
                             best = targetPart 
                             
-                            -- INTEGRATED TRIGGERBOT WITH 0.03s DELAY
-                            if d <= 7 then
-                                -- We run this in a separate thread so it doesn't freeze the Aimbot
-                                task.spawn(function()
-                                    task.wait(0.03) -- The requested 0.03s delay
+                            -- REACTION TRIGGERBOT (No distance check, just occlusion + crosshair)
+                            -- This triggers the moment 'best' is identified under crosshair
+                            task.spawn(function()
+                                -- Verification: ensure we are still looking at a valid target
+                                if best == targetPart then
+                                    task.wait(0.03) -- Reaction Delay
                                     
-                                    -- Re-verify distance after delay to ensure they didn't move
-                                    local newMouse = UserInputService:GetMouseLocation()
-                                    local _, ns, non = pcall(Camera.WorldToViewportPoint, Camera, targetPart.Position)
-                                    if non and (Vector2.new(ns.X, ns.Y) - newMouse).Magnitude <= 10 then
+                                    -- Final check before firing
+                                    if not isOccluded(char) and isAlive(p) then
                                         triggerFiredTime = tick() 
                                         if mouse1click then
                                             mouse1click()
@@ -139,8 +141,8 @@ local function getTarget()
                                             mouse1release()
                                         end
                                     end
-                                end)
-                            end
+                                end
+                            end)
                         end
                     end
                 end
